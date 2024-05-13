@@ -19,6 +19,53 @@ class MinimaxSymmetry:
 
         self.name = "Minimax Symmetry"
 
+        self.total_actions = len(self.game.new_initial_state().legal_actions())
+        self.len_initial_tensor = len(self.game.new_initial_state().observation_tensor())
+
+        self.player_0_index_to_action = {}
+        for i in range(0, self.total_actions):
+            state = game.new_initial_state()
+            initial_tensor = state.observation_tensor()
+            state.apply_action(i)
+            final_tensor = state.observation_tensor()
+            for j in range(self.len_initial_tensor // 3, self.len_initial_tensor):
+                if (initial_tensor[j] != final_tensor[j]):
+                    self.player_0_index_to_action[j] = i
+
+        self.player_1_index_to_action = {int(self.len_initial_tensor * (2 / 3)): 0}
+        for i in range(1, self.total_actions):
+            state = game.new_initial_state()
+            state.apply_action(0)
+            initial_tensor = state.observation_tensor()
+            state.apply_action(i)
+            final_tensor = state.observation_tensor()
+            for j in range(self.len_initial_tensor // 3, self.len_initial_tensor):
+                if initial_tensor[j] != final_tensor[j]:
+                    self.player_1_index_to_action[j] = i
+
+        self.num_horizontal_lines = (self.num_rows + 1) * self.num_cols
+        self.num_vertical_lines = self.num_rows * (self.num_cols + 1)
+
+        self.transposition_table = {}
+
+        self.name = "Minimax Transposition"
+
+    def form_game_string(self, state):
+        state_custom_string = "0" * self.total_actions
+        state_custom_list = list(state_custom_string)
+        for key in self.player_0_index_to_action.keys():
+            tensor = state.observation_tensor()
+            if tensor[key] == 1:
+                state_custom_list[self.player_0_index_to_action[key]] = "1"
+
+        for key in self.player_1_index_to_action.keys():
+            tensor = state.observation_tensor()
+            if tensor[key] == 1:
+                state_custom_list[self.player_1_index_to_action[key]] = "2"
+
+        state_custom_string = "".join(state_custom_list)
+        return state_custom_string
+
     def create_combined_grid(self, action_tensor):
         """
         Create a grid representation of the game state from an action tensor.
@@ -57,12 +104,23 @@ class MinimaxSymmetry:
         """Reflect the grid across an axis. Axis 0 is vertical, 1 is horizontal."""
         return np.flip(grid, axis=axis)
 
+    @staticmethod
+    def swap_ones_twos(arr):
+        mask1 = arr == 1
+        mask2 = arr == 2
+
+        arr[mask1] = 2
+        arr[mask2] = 1
+
+        return arr
+
     def get_canonical_form(self, action_tensor):
         grid = self.create_combined_grid(action_tensor)
         # Check if square board
         if self.num_rows == self.num_cols:
             forms = [
                 grid,
+                self.swap_ones_twos(grid),
                 self.rotate_grid(grid, 1),
                 self.rotate_grid(grid, 2),
                 self.rotate_grid(grid, 3),
@@ -75,6 +133,7 @@ class MinimaxSymmetry:
         else:
             forms = [
                 grid,
+                self.swap_ones_twos(grid),
                 self.reflect_grid(grid, 0),
                 self.reflect_grid(grid, 1)
             ]
@@ -89,7 +148,7 @@ class MinimaxSymmetry:
         # Total keys: 212
         # Execution time: 0.19 seconds
         # Generate a key for the state using its canonical form and current player.
-        action_string = state.dbn_string()
+        action_string = self.form_game_string(state)
         canonical_tensor = self.get_canonical_form(action_string)
         return tuple(canonical_tensor.flatten()), state.current_player()
 

@@ -6,11 +6,35 @@ import time
 
 
 class MinimaxTransposition:
+
     def __init__(self, game):
         params = game.get_parameters()
         self.game = game
         self.num_rows = params['num_rows']
         self.num_cols = params['num_cols']
+        self.total_actions = len(self.game.new_initial_state().legal_actions())
+        self.len_initial_tensor = len(self.game.new_initial_state().observation_tensor())
+
+        self.player_0_index_to_action = {}
+        for i in range(0, self.total_actions):
+            state = game.new_initial_state()
+            initial_tensor = state.observation_tensor()
+            state.apply_action(i)
+            final_tensor = state.observation_tensor()
+            for j in range(self.len_initial_tensor // 3, self.len_initial_tensor):
+                if (initial_tensor[j] != final_tensor[j]):
+                    self.player_0_index_to_action[j] = i
+
+        self.player_1_index_to_action = {int(self.len_initial_tensor * (2 / 3)): 0}
+        for i in range(1, self.total_actions):
+            state = game.new_initial_state()
+            state.apply_action(0)
+            initial_tensor = state.observation_tensor()
+            state.apply_action(i)
+            final_tensor = state.observation_tensor()
+            for j in range(self.len_initial_tensor // 3, self.len_initial_tensor):
+                if initial_tensor[j] != final_tensor[j]:
+                    self.player_1_index_to_action[j] = i
 
         self.num_horizontal_lines = (self.num_rows + 1) * self.num_cols
         self.num_vertical_lines = self.num_rows * (self.num_cols + 1)
@@ -19,13 +43,28 @@ class MinimaxTransposition:
 
         self.name = "Minimax Transposition"
 
-    @staticmethod
-    def state_to_key(state):
+    def form_game_string(self, state):
+        state_custom_string = "0" * self.total_actions
+        state_custom_list = list(state_custom_string)
+        for key in self.player_0_index_to_action.keys():
+            tensor = state.observation_tensor()
+            if tensor[key] == 1:
+                state_custom_list[self.player_0_index_to_action[key]] = "1"
+
+        for key in self.player_1_index_to_action.keys():
+            tensor = state.observation_tensor()
+            if tensor[key] == 1:
+                state_custom_list[self.player_1_index_to_action[key]] = "2"
+
+        state_custom_string = "".join(state_custom_list)
+        return state_custom_string
+
+    def state_to_key(self, state):
         # Using transposition tables with symmetries
         # Total keys: 212
         # Execution time: 0.19 seconds
         # Generate a key for the state using its canonical form and current player.
-        action_string = np.array(state.dbn_string())
+        action_string = np.array(self.form_game_string(state))
         return tuple(action_string.flatten()), state.current_player()
 
     def _minimax(self, state, maximizing_player_id, depth=0, iteration=0):

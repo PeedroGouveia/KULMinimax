@@ -3,7 +3,6 @@ from absl import app
 from minimax_template import MinimaxTemplate
 from minimax_symmetry import MinimaxSymmetry
 from minimax_transposition import MinimaxTransposition
-# TODO : tenho que implementar isto melhor da simetria.
 
 def main(_):
     games_list = pyspiel.registered_names()
